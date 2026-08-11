@@ -12,6 +12,9 @@
 // @match        https://troubleshooting.amazon.com/*
 // @grant        GM_xmlhttpRequest
 // @connect      docs.google.com
+// @connect      sheets.googleusercontent.com
+// @connect      doc-0c-7c-sheets.googleusercontent.com
+// @connect      *.googleusercontent.com
 // @run-at       document-idle
 // ==/UserScript==
 
