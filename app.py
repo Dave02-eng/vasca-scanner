@@ -10,7 +10,7 @@ import requests
 from datetime import datetime
 
 # ─── Config ──────────────────────────────────────────────────────────────────
-st.set_page_config(page_title="Vasca Scanner", page_icon="📦", layout="centered")
+st.set_page_config(page_title="Scan-point Vasche", page_icon="📦", layout="centered")
 
 # Google Form endpoint
 FORM_ID = "1FAIpQLSdwH9CqBjpXyydMcT-udMmhgfwiHpJoFhM9y49qdjLRK4r9JQ"
@@ -74,8 +74,8 @@ if "scan_history" not in st.session_state:
 # ─── Header ──────────────────────────────────────────────────────────────────
 st.markdown("""
 <div class='scanner-header'>
-    <h1 style='margin:0;color:white;'>📦 Vasca Scanner</h1>
-    <p style='margin:5px 0 0 0;opacity:0.8;'>Spara il barcode del pacco</p>
+    <h1 style='margin:0;color:white;font-size:2.5rem;'>📦 Scan-point Vasche</h1>
+    <p style='margin:10px 0 0 0;opacity:0.9;font-size:1.1rem;'>⚠️ Sparare la <b>Sp00</b> del pacco</p>
 </div>
 """, unsafe_allow_html=True)
 
