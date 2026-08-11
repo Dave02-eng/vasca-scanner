@@ -81,7 +81,7 @@ st.markdown("""
 
 
 # ─── Istruzione ──────────────────────────────────────────────────────────────
-st.markdown("<h2 style='text-align:center;color:#2c3e50;margin:20px 0;'>🔫 Scansiona la Sp00</h2>",
+st.markdown("<h2 style='text-align:center;color:#2c3e50;margin:20px 0;'>📦 Scansiona la Sp00</h2>",
            unsafe_allow_html=True)
 
 
