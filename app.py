@@ -93,7 +93,11 @@ with st.form("scan_form", clear_on_submit=True):
         placeholder="In attesa di scansione...",
         label_visibility="collapsed"
     )
-    submitted = st.form_submit_button("Invia", type="primary")
+    submitted = st.form_submit_button("Invia", type="primary", use_container_width=True)
+    # Nascondi il bottone via CSS
+    st.markdown("""<style>
+        button[kind="primaryFormSubmit"] { display: none !important; }
+    </style>""", unsafe_allow_html=True)
 
 if submitted and scan_input and scan_input.strip():
     barcode = scan_input.strip()
