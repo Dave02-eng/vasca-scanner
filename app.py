@@ -12,10 +12,8 @@ from datetime import datetime
 # ─── Config ──────────────────────────────────────────────────────────────────
 st.set_page_config(page_title="Scan-point Vasche", page_icon="📦", layout="centered")
 
-# Google Form endpoint
-FORM_ID = "1FAIpQLSdwH9CqBjpXyydMcT-udMmhgfwiHpJoFhM9y49qdjLRK4r9JQ"
-ENTRY_ID = "entry.677800488"
-FORM_URL = f"https://docs.google.com/forms/d/e/{FORM_ID}/formResponse"
+# Google Apps Script endpoint (scrittura)
+APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxGCxERhIMskRiXUdNlGVZh1I2_Tr6gzU3gGiSNDR8bb7onlzX8Vifocd55qlehJFuCEQ/exec"
 
 # Google Sheet (per lettura lista)
 SHEET_ID = "1xblEjqHdpXCGJgatKeJgDx3810dP83Z92-C3uonL0gY"
@@ -99,17 +97,21 @@ scan_input = st.text_input(
 if scan_input and scan_input.strip():
     barcode = scan_input.strip()
 
-    # Invia a Google Form
+    # Invia a Google Apps Script
     try:
-        response = requests.post(FORM_URL, data={ENTRY_ID: barcode})
-        if response.status_code in (200, 302):
+        import json
+        response = requests.post(
+            APPS_SCRIPT_URL,
+            json={"scannable_id": barcode},
+            headers={"Content-Type": "application/json"}
+        )
+        if response.status_code == 200:
             st.session_state.scan_count += 1
             st.session_state.last_scan = barcode
             st.session_state.scan_history.insert(0, {
                 "id": barcode,
                 "time": datetime.now().strftime("%H:%M:%S")
             })
-            # Mantieni solo ultime 50 nella sessione
             st.session_state.scan_history = st.session_state.scan_history[:50]
             st.markdown("<div class='scan-success'>✅ Salvato!</div>", unsafe_allow_html=True)
         else:
