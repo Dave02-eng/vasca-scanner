@@ -84,17 +84,18 @@ st.markdown("<h2 style='text-align:center;color:#2c3e50;margin:20px 0;'>📦 Sca
 
 
 # ─── Input Scanner ───────────────────────────────────────────────────────────
-# Lo scanner USB funziona come tastiera: scrive il barcode + ENTER
-# L'input Streamlit cattura il testo e al submit (Enter) salva
+# Uso un form: invia SOLO quando si preme Enter (lo scanner lo fa automaticamente)
 
-scan_input = st.text_input(
-    "🔫 Spara qui il barcode",
-    key="scan_input",
-    placeholder="In attesa di scansione...",
-    label_visibility="collapsed"
-)
+with st.form("scan_form", clear_on_submit=True):
+    scan_input = st.text_input(
+        "Scansiona qui",
+        key="scan_input",
+        placeholder="In attesa di scansione...",
+        label_visibility="collapsed"
+    )
+    submitted = st.form_submit_button("Invia", type="primary")
 
-if scan_input and scan_input.strip():
+if submitted and scan_input and scan_input.strip():
     barcode = scan_input.strip()
 
     # Invia a Google Apps Script
@@ -118,9 +119,6 @@ if scan_input and scan_input.strip():
             st.error(f"❌ Errore salvataggio: {response.status_code}")
     except Exception as e:
         st.error(f"❌ Errore connessione: {str(e)}")
-
-    # Pulisci input per prossima scansione (rerun)
-    st.rerun()
 
 
 # ─── Storico sessione ────────────────────────────────────────────────────────
