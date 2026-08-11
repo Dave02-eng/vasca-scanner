@@ -80,13 +80,9 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 
-# ─── Contatore ───────────────────────────────────────────────────────────────
-st.markdown(f"<div class='scan-count'>📊 Scansioni: {st.session_state.scan_count}</div>",
+# ─── Istruzione ──────────────────────────────────────────────────────────────
+st.markdown("<h2 style='text-align:center;color:#2c3e50;margin:20px 0;'>🔫 Scansiona la Sp00</h2>",
            unsafe_allow_html=True)
-
-if st.session_state.last_scan:
-    st.markdown(f"<div class='last-scan'>Ultimo: <b>{st.session_state.last_scan}</b></div>",
-               unsafe_allow_html=True)
 
 
 # ─── Input Scanner ───────────────────────────────────────────────────────────
