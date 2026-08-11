@@ -2,12 +2,14 @@
 Vasca Scanner — Streamlit App
 ================================
 Pagina web per scansione pacchi alle vasche.
-L'operatore spara il barcode, l'app salva su Google Sheets via Google Form.
+1. L'operatore spara il badge → login riconosciuto
+2. L'operatore spara le Sp00 → salvate su Google Sheet con login
 """
 
 import streamlit as st
 import requests
 from datetime import datetime
+from badges import BADGE_MAP
 
 # ─── Config ──────────────────────────────────────────────────────────────────
 st.set_page_config(page_title="Scan-point Vasche", page_icon="📦", layout="centered")
@@ -32,13 +34,6 @@ st.markdown("""
         margin-bottom: 20px;
         text-align: center;
     }
-    .scan-count {
-        font-size: 3rem;
-        font-weight: 700;
-        color: #2c3e50;
-        text-align: center;
-        margin: 10px 0;
-    }
     .scan-success {
         background-color: #d4edda;
         border: 1px solid #c3e6cb;
@@ -46,15 +41,6 @@ st.markdown("""
         padding: 10px;
         text-align: center;
         margin: 10px 0;
-    }
-    .last-scan {
-        background-color: #e8f4fd;
-        border: 1px solid #b8daff;
-        border-radius: 6px;
-        padding: 10px;
-        font-family: monospace;
-        font-size: 1.1rem;
-        text-align: center;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -67,25 +53,59 @@ if "last_scan" not in st.session_state:
     st.session_state.last_scan = ""
 if "scan_history" not in st.session_state:
     st.session_state.scan_history = []
+if "logged_in" not in st.session_state:
+    st.session_state.logged_in = False
+if "user_login" not in st.session_state:
+    st.session_state.user_login = ""
+if "user_name" not in st.session_state:
+    st.session_state.user_name = ""
 
 
 # ─── Header ──────────────────────────────────────────────────────────────────
 st.markdown("""
 <div class='scanner-header'>
     <h1 style='margin:0;color:white;font-size:2.5rem;'>📦 Scan-point Vasche</h1>
-    <p style='margin:10px 0 0 0;opacity:0.9;font-size:1.1rem;'>⚠️ Sparare la <b>Sp00</b> del pacco</p>
 </div>
 """, unsafe_allow_html=True)
 
 
-# ─── Istruzione ──────────────────────────────────────────────────────────────
-st.markdown("<h2 style='text-align:center;color:#2c3e50;margin:20px 0;'>📦 Scansiona la Sp00</h2>",
+# ─── LOGIN VIA BADGE ─────────────────────────────────────────────────────────
+if not st.session_state.logged_in:
+    st.markdown("<h2 style='text-align:center;color:#2c3e50;margin:20px 0;'>🪪 Spara il tuo Badge</h2>",
+               unsafe_allow_html=True)
+
+    with st.form("badge_form", clear_on_submit=True):
+        badge_input = st.text_input(
+            "Badge",
+            placeholder="Spara il badge...",
+            label_visibility="collapsed"
+        )
+        badge_submitted = st.form_submit_button("OK", type="primary", use_container_width=True)
+        st.markdown("""<style>
+            button[kind="primaryFormSubmit"] { display: none !important; }
+        </style>""", unsafe_allow_html=True)
+
+    if badge_submitted and badge_input and badge_input.strip():
+        badge_id = badge_input.strip()
+        if badge_id in BADGE_MAP:
+            info = BADGE_MAP[badge_id]
+            st.session_state.logged_in = True
+            st.session_state.user_login = info["login"]
+            st.session_state.user_name = info["name"]
+            st.rerun()
+        else:
+            st.error("⚠️ Badge non riconosciuto. Riprova.")
+
+    st.stop()
+
+
+# ─── SCANNER (solo se loggato) ───────────────────────────────────────────────
+# Saluto
+first_name = st.session_state.user_name.split(",")[1].strip().split()[0] if "," in st.session_state.user_name else st.session_state.user_name
+st.markdown(f"<h2 style='text-align:center;color:#2c3e50;margin:10px 0;'>Ciao {first_name}, scansiona la Sp00</h2>",
            unsafe_allow_html=True)
 
-
 # ─── Input Scanner ───────────────────────────────────────────────────────────
-# Uso un form: invia SOLO quando si preme Enter (lo scanner lo fa automaticamente)
-
 with st.form("scan_form", clear_on_submit=True):
     scan_input = st.text_input(
         "Scansiona qui",
@@ -94,7 +114,6 @@ with st.form("scan_form", clear_on_submit=True):
         label_visibility="collapsed"
     )
     submitted = st.form_submit_button("Invia", type="primary", use_container_width=True)
-    # Nascondi il bottone via CSS
     st.markdown("""<style>
         button[kind="primaryFormSubmit"] { display: none !important; }
     </style>""", unsafe_allow_html=True)
@@ -102,12 +121,11 @@ with st.form("scan_form", clear_on_submit=True):
 if submitted and scan_input and scan_input.strip():
     barcode = scan_input.strip()
 
-    # Invia a Google Apps Script
+    # Invia a Google Apps Script con login
     try:
-        import json
         response = requests.post(
             APPS_SCRIPT_URL,
-            json={"scannable_id": barcode},
+            json={"scannable_id": barcode, "login": st.session_state.user_login},
             headers={"Content-Type": "application/json"}
         )
         if response.status_code == 200:
@@ -125,13 +143,6 @@ if submitted and scan_input and scan_input.strip():
         st.error(f"❌ Errore connessione: {str(e)}")
 
 
-# ─── Storico sessione ────────────────────────────────────────────────────────
-if st.session_state.scan_history:
-    with st.expander(f"📋 Storico sessione ({len(st.session_state.scan_history)} scan)", expanded=False):
-        for item in st.session_state.scan_history[:20]:
-            st.markdown(f"`{item['time']}` — **{item['id']}**")
-
-
 # ─── Footer ─────────────────────────────────────────────────────────────────
 st.divider()
-st.caption("MXP5 — Vasca Injection Tracker")
+st.caption(f"👤 {st.session_state.user_login} — MXP5 Vasca Injection Tracker")
