@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Scan-point Vasche</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background: #f0f8ff;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .header {
+            background: linear-gradient(135deg, #1a5276, #2980b9);
+            color: white;
+            padding: 20px 40px;
+            border-radius: 10px;
+            text-align: center;
+            margin-bottom: 30px;
+            width: 90%;
+            max-width: 500px;
+        }
+        .header h1 { font-size: 2rem; margin-bottom: 5px; }
+        .header p { opacity: 0.9; font-size: 1rem; }
+        .main-area {
+            text-align: center;
+            width: 90%;
+            max-width: 500px;
+        }
+        .greeting {
+            font-size: 1.5rem;
+            color: #2c3e50;
+            margin-bottom: 20px;
+            font-weight: 600;
+        }
+        .scan-input {
+            width: 100%;
+            padding: 15px 20px;
+            font-size: 1.3rem;
+            border: 2px solid #2980b9;
+            border-radius: 8px;
+            outline: none;
+            text-align: center;
+        }
+        .scan-input:focus { border-color: #1a5276; box-shadow: 0 0 8px rgba(41,128,185,0.3); }
+        .feedback {
+            margin-top: 15px;
+            padding: 12px;
+            border-radius: 6px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            min-height: 44px;
+            transition: opacity 0.3s;
+        }
+        .feedback.success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .feedback.error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .feedback.warning { background: #fff3cd; color: #856404; border: 1px solid #ffc107; }
+        .counter {
+            margin-top: 20px;
+            color: #6c757d;
+            font-size: 0.95rem;
+        }
+        .footer {
+            position: fixed;
+            bottom: 10px;
+            color: #aaa;
+            font-size: 0.8rem;
+        }
+        .logout-btn {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            background: #e74c3c;
+            color: white;
+            border: none;
+            padding: 8px 14px;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            cursor: pointer;
+        }
+        .logout-btn:hover { background: #c0392b; }
+        #login-section, #scan-section { display: none; }
+        .loading { text-align: center; color: #2980b9; font-size: 1.1rem; margin-top: 20px; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>📦 Scan-point Vasche</h1>
+        <p>MXP5</p>
+    </div>
+
+    <!-- LOADING -->
+    <div class="loading" id="loading-msg">Caricamento...</div>
+
+    <!-- LOGIN -->
+    <div class="main-area" id="login-section">
+        <div class="greeting">🪪 Spara il tuo Badge</div>
+        <input type="text" class="scan-input" id="badge-input" placeholder="Badge..." autofocus autocomplete="off">
+        <div class="feedback" id="login-feedback"></div>
+    </div>
+
+    <!-- SCANNER -->
+    <div class="main-area" id="scan-section">
+        <button class="logout-btn" id="logout-btn">Esci</button>
+        <div class="greeting" id="greeting-text">Ciao, scansiona la Sp00</div>
+        <input type="text" class="scan-input" id="scan-input" placeholder="Sp00..." autocomplete="off">
+        <div class="feedback" id="scan-feedback"></div>
+        <div class="counter" id="counter"></div>
+    </div>
+
+    <div class="footer" id="footer-text">MXP5 — Vasca Injection Tracker</div>
+
+    <script>
+        // ─── CONFIG ─────────────────────────────────────────────────────
+        const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxGCxERhIMskRiXUdNlGVZh1I2_Tr6gzU3gGiSNDR8bb7onlzX8Vifocd55qlehJFuCEQ/exec";
+
+        // ─── STATE ──────────────────────────────────────────────────────
+        let currentLogin = "";
+        let currentName = "";
+        let scanCount = 0;
+        let badgeMap = {};
+        let sendQueue = [];  // coda per invii falliti (offline resilience)
+
+        // ─── LOAD BADGES ────────────────────────────────────────────────
+        fetch("badges.json")
+            .then(r => r.json())
+            .then(data => {
+                badgeMap = data;
+                document.getElementById("loading-msg").style.display = "none";
+
+                // Ripristina sessione se esiste
+                const saved = sessionStorage.getItem("vasca_user");
+                if (saved) {
+                    const user = JSON.parse(saved);
+                    currentLogin = user.login;
+                    currentName = user.name;
+                    scanCount = parseInt(sessionStorage.getItem("vasca_count") || "0");
+                    showScanner();
+                } else {
+                    document.getElementById("login-section").style.display = "block";
+                    document.getElementById("badge-input").focus();
+                }
+            })
+            .catch(err => {
+                console.error("Errore caricamento badges:", err);
+                document.getElementById("loading-msg").textContent = "❌ Errore caricamento dati";
+            });
+
+        // ─── BADGE LOGIN ────────────────────────────────────────────────
+        document.getElementById("badge-input").addEventListener("keydown", function(e) {
+            if (e.key === "Enter") {
+                const badge = this.value.trim();
+                const feedback = document.getElementById("login-feedback");
+
+                if (badgeMap[badge]) {
+                    currentLogin = badgeMap[badge].login;
+                    currentName = badgeMap[badge].name;
+                    scanCount = 0;
+
+                    // Salva sessione
+                    sessionStorage.setItem("vasca_user", JSON.stringify({login: currentLogin, name: currentName}));
+                    sessionStorage.setItem("vasca_count", "0");
+
+                    showScanner();
+                } else {
+                    feedback.className = "feedback error";
+                    feedback.textContent = "⚠️ Badge non riconosciuto";
+                    this.value = "";
+                    this.focus();
+                }
+            }
+        });
+
+        // ─── SHOW SCANNER ───────────────────────────────────────────────
+        function showScanner() {
+            let firstName = currentName;
+            if (currentName.includes(",")) {
+                firstName = currentName.split(",")[1].trim().split(" ")[0];
+            }
+
+            document.getElementById("login-section").style.display = "none";
+            document.getElementById("scan-section").style.display = "block";
+            document.getElementById("greeting-text").textContent = "Ciao " + firstName + ", scansiona la Sp00";
+            document.getElementById("footer-text").textContent = "👤 " + currentLogin + " — MXP5 Vasca Injection Tracker";
+            updateCounter();
+
+            const scanInput = document.getElementById("scan-input");
+            scanInput.value = "";
+            scanInput.focus();
+        }
+
+        // ─── LOGOUT ─────────────────────────────────────────────────────
+        document.getElementById("logout-btn").addEventListener("click", function() {
+            sessionStorage.removeItem("vasca_user");
+            sessionStorage.removeItem("vasca_count");
+            currentLogin = "";
+            currentName = "";
+            scanCount = 0;
+            document.getElementById("scan-section").style.display = "none";
+            document.getElementById("login-section").style.display = "block";
+            document.getElementById("badge-input").value = "";
+            document.getElementById("badge-input").focus();
+            document.getElementById("login-feedback").textContent = "";
+            document.getElementById("footer-text").textContent = "MXP5 — Vasca Injection Tracker";
+        });
+
+        // ─── SCANNER ────────────────────────────────────────────────────
+        document.getElementById("scan-input").addEventListener("keydown", function(e) {
+            if (e.key === "Enter") {
+                const barcode = this.value.trim();
+                if (!barcode) return;
+
+                // Feedback IMMEDIATO — nessun blocco
+                scanCount++;
+                sessionStorage.setItem("vasca_count", scanCount.toString());
+                const feedback = document.getElementById("scan-feedback");
+                feedback.className = "feedback success";
+                feedback.textContent = "✅ " + barcode;
+                updateCounter();
+
+                // Pulisci campo subito per prossima scansione
+                this.value = "";
+                this.focus();
+
+                // Invia in background (fire-and-forget)
+                sendToSheet(barcode);
+            }
+        });
+
+        // ─── COUNTER ────────────────────────────────────────────────────
+        function updateCounter() {
+            document.getElementById("counter").textContent = scanCount + " scansion" + (scanCount === 1 ? "e" : "i") + " in questa sessione";
+        }
+
+        // ─── INVIO A GOOGLE SHEET (con retry) ───────────────────────────
+        function sendToSheet(scannableId) {
+            const payload = {
+                scannable_id: scannableId,
+                login: currentLogin
+            };
+
+            fetch(APPS_SCRIPT_URL, {
+                method: "POST",
+                mode: "no-cors",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload)
+            }).catch(err => {
+                console.warn("Invio fallito, in coda per retry:", scannableId, err);
+                sendQueue.push(payload);
+            });
+        }
+
+        // ─── RETRY QUEUE (ogni 30s tenta di reinviare i falliti) ─────────
+        setInterval(() => {
+            if (sendQueue.length === 0) return;
+            const batch = [...sendQueue];
+            sendQueue = [];
+            batch.forEach(payload => {
+                fetch(APPS_SCRIPT_URL, {
+                    method: "POST",
+                    mode: "no-cors",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(payload)
+                }).catch(() => {
+                    sendQueue.push(payload);
+                });
+            });
+        }, 30000);
+
+        // ─── KEEP FOCUS sull'input attivo ───────────────────────────────
+        document.addEventListener("click", function() {
+            if (document.getElementById("scan-section").style.display === "block") {
+                document.getElementById("scan-input").focus();
+            } else if (document.getElementById("login-section").style.display === "block") {
+                document.getElementById("badge-input").focus();
+            }
+        });
+    </script>
+</body>
+</html>
