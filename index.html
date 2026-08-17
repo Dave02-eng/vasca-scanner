@@ -426,26 +426,37 @@
             }
         });
 
-        // ─── SEGNALA LOGIN A FC MENU (via Google Sheet) ──────────────────
-        // Il POST diretto cross-site è bloccato da SameSite cookie policy +
-        // X-Frame-Options. Soluzione: segnaliamo il login sullo stesso Sheet
-        // che già usiamo; uno script Tampermonkey su FC Menu (same-origin,
-        // nessun blocco) legge il segnale e fa login+set-task localmente.
-        function signalFcMenuLogin(rawBadge) {
-            const payload = {
-                scannable_id: "BADGE_LOGIN_" + rawBadge,
-                login: currentLogin
-            };
-            fetch(APPS_SCRIPT_URL, {
-                method: "POST",
-                mode: "no-cors",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(payload)
-            }).then(() => {
-                console.log("[FC Menu] Segnale login inviato allo Sheet:", rawBadge);
-            }).catch(err => {
-                console.warn("[FC Menu] Errore invio segnale login:", err);
-            });
+        // ─── LOGIN KIOSK + SET TASK SU FC MENU (navigazione GET reale) ────
+        // Test: SameSite=Lax blocca i cookie sui POST cross-site, ma li
+        // permette sulle navigazioni GET di primo livello. Proviamo a usare
+        // GET con parametri in query string invece di form POST.
+        let fcmenuWindow = null;
+
+        function loginToFcMenuAndSetTask(rawBadge) {
+            try {
+                const loginUrl = "https://fcmenu-dub-regionalized.corp.amazon.com/do/login?badgeBarcodeId=" + encodeURIComponent(rawBadge);
+                console.log("[FC Menu] Navigo (GET) verso login:", loginUrl);
+
+                fcmenuWindow = window.open(loginUrl, "fcmenu-popup", "width=500,height=400");
+                if (!fcmenuWindow) {
+                    console.warn("[FC Menu] Popup bloccato dal browser");
+                    return;
+                }
+
+                function onLoginLoaded() {
+                    fcmenuWindow.removeEventListener("load", onLoginLoaded);
+                    const taskUrl = "https://fcmenu-dub-regionalized.corp.amazon.com/do/calmCode?warehouseId=MXP5&calmCode=FLUID";
+                    console.log("[FC Menu] Login caricato, navigo (GET) verso set-task:", taskUrl);
+                    fcmenuWindow.location.href = taskUrl;
+
+                    setTimeout(() => {
+                        try { fcmenuWindow.close(); } catch(e) {}
+                    }, 2500);
+                }
+                fcmenuWindow.addEventListener("load", onLoginLoaded);
+            } catch (e) {
+                console.error("[FC Menu] Errore login/set task:", e);
+            }
         }
 
         // ─── INVIO A GOOGLE SHEET (con retry) ───────────────────────────
