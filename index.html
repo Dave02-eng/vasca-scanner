@@ -155,7 +155,9 @@
         // ─── BADGE LOGIN ────────────────────────────────────────────────
         document.getElementById("badge-input").addEventListener("keydown", function(e) {
             if (e.key === "Enter") {
-                const badge = this.value.trim();
+                const rawBadge = this.value.trim();
+                // Pad a 7 cifre con zeri iniziali (es. "2240" -> "0002240")
+                const badge = /^\d+$/.test(rawBadge) ? rawBadge.padStart(7, "0") : rawBadge;
                 const feedback = document.getElementById("login-feedback");
 
                 if (badgeMap[badge]) {
