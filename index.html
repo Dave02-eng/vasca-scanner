@@ -108,8 +108,8 @@
     <!-- SCANNER -->
     <div class="main-area" id="scan-section">
         <button class="logout-btn" id="logout-btn">Esci</button>
-        <div class="greeting" id="greeting-text">Ciao, scansiona la Sp00</div>
-        <input type="text" class="scan-input" id="scan-input" placeholder="Sp00..." autocomplete="off">
+        <div class="greeting" id="greeting-text">Ciao, scansiona l'etichetta pacco</div>
+        <input type="text" class="scan-input" id="scan-input" placeholder="Etichetta pacco..." autocomplete="off">
         <div class="feedback" id="scan-feedback"></div>
         <div class="counter" id="counter"></div>
     </div>
@@ -188,7 +188,7 @@
 
             document.getElementById("login-section").style.display = "none";
             document.getElementById("scan-section").style.display = "block";
-            document.getElementById("greeting-text").textContent = "Ciao " + firstName + ", scansiona la Sp00";
+            document.getElementById("greeting-text").textContent = "Ciao " + firstName + ", scansiona l'etichetta pacco";
             document.getElementById("footer-text").textContent = "👤 " + currentLogin + " — MXP5 Vasca Injection Tracker";
             updateCounter();
 

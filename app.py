@@ -102,7 +102,7 @@ if not st.session_state.logged_in:
 # ─── SCANNER (solo se loggato) ───────────────────────────────────────────────
 # Saluto
 first_name = st.session_state.user_name.split(",")[1].strip().split()[0] if "," in st.session_state.user_name else st.session_state.user_name
-st.markdown(f"<h2 style='text-align:center;color:#2c3e50;margin:10px 0;'>Ciao {first_name}, scansiona la Sp00</h2>",
+st.markdown(f"<h2 style='text-align:center;color:#2c3e50;margin:10px 0;'>Ciao {first_name}, scansiona l'etichetta pacco</h2>",
            unsafe_allow_html=True)
 
 # ─── Input Scanner ───────────────────────────────────────────────────────────
