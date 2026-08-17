@@ -233,6 +233,17 @@
             const value = rawValue.trim();
             if (!value) return;
 
+            // ─── COMANDO LOGOUT MANUALE ─────────────────────────────
+            if (value.toUpperCase() === "STOP") {
+                if (currentLogin) {
+                    performLogout("🚪 Logout effettuato. Rifai il login.");
+                } else {
+                    showFeedback("ℹ️ Non eri loggato.", "info");
+                }
+                focusActiveInput();
+                return;
+            }
+
             // Normalizza come possibile badge: solo cifre -> pad a 7
             const asBadge = /^\d+$/.test(value) ? value.padStart(7, "0") : value;
 
@@ -303,19 +314,25 @@
             document.getElementById("counter").textContent = scanCount + " scansion" + (scanCount === 1 ? "e" : "i") + " in questa sessione";
         }
 
+        // ─── LOGOUT (condiviso: automatico o via scan "STOP") ───────────
+        function performLogout(message) {
+            currentLogin = "";
+            currentName = "";
+            loginTime = 0;
+            anonScanCount = 0; // riparte il periodo di grazia dei 10 scan
+            sessionStorage.removeItem("vasca_user");
+            sessionStorage.removeItem("vasca_login_time");
+            sessionStorage.setItem("vasca_anon_count", "0");
+            showFeedback(message, "info");
+            hideAlarm();
+            updateUI();
+        }
+
         // ─── AUTO-LOGOUT DOPO 1H30 ────────────────────────────────────
         function checkAutoLogout() {
             if (!currentLogin || !loginTime) return;
             if (Date.now() - loginTime >= AUTO_LOGOUT_MS) {
-                currentLogin = "";
-                currentName = "";
-                loginTime = 0;
-                anonScanCount = 0; // nuovo periodo di grazia dopo il logout automatico
-                sessionStorage.removeItem("vasca_user");
-                sessionStorage.removeItem("vasca_login_time");
-                sessionStorage.setItem("vasca_anon_count", "0");
-                showFeedback("⏰ Sessione scaduta (1h30). Rifai il login.", "info");
-                updateUI();
+                performLogout("⏰ Sessione scaduta (1h30). Rifai il login.");
             }
         }
         setInterval(checkAutoLogout, 30000); // controlla ogni 30 secondi
