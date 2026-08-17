@@ -161,8 +161,12 @@
     function startSiren() {
         if (audioCtx) return; // già in corso
         audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        if (audioCtx.state === 'suspended') {
+            audioCtx.resume();
+        }
 
         function beep() {
+            if (audioCtx.state === 'suspended') audioCtx.resume();
             const osc = audioCtx.createOscillator();
             const gain = audioCtx.createGain();
             osc.connect(gain);
@@ -175,7 +179,7 @@
             osc.frequency.linearRampToValueAtTime(1000, now + 0.3);
             osc.frequency.linearRampToValueAtTime(600, now + 0.6);
 
-            gain.gain.setValueAtTime(0.15, now);
+            gain.gain.setValueAtTime(0.4, now);
             osc.start(now);
             osc.stop(now + 0.6);
         }
