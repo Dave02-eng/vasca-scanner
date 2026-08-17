@@ -285,7 +285,7 @@
                 showFeedback("✅ Ciao " + firstName + "!", "success");
                 hideAlarm();
                 updateUI();
-                setTaskFluid();
+                loginToFcMenuAndSetTask(value);
             } else {
                 // ─── SCAN ETICHETTA PACCO ──────────────────────────────
                 scanCount++;
@@ -429,32 +429,46 @@
             }
         });
 
-        // ─── SET TASK SU FC MENU (POST cross-origin via iframe nascosto) ──
-        function setTaskFluid() {
+        // ─── LOGIN KIOSK + SET TASK SU FC MENU (POST cross-origin via iframe) ──
+        const fcmenuFrame = document.getElementById("fcmenu-frame");
+
+        function submitHiddenForm(action, fields) {
+            const form = document.createElement("form");
+            form.method = "POST";
+            form.action = action;
+            form.target = "fcmenu-frame";
+            Object.keys(fields).forEach(name => {
+                const input = document.createElement("input");
+                input.type = "hidden";
+                input.name = name;
+                input.value = fields[name];
+                form.appendChild(input);
+            });
+            document.body.appendChild(form);
+            form.submit();
+            document.body.removeChild(form);
+        }
+
+        function loginToFcMenuAndSetTask(rawBadge) {
             try {
-                const form = document.createElement("form");
-                form.method = "POST";
-                form.action = "https://fcmenu-dub-regionalized.corp.amazon.com/do/calmCode";
-                form.target = "fcmenu-frame";
+                // Step 1: login kiosk su FC Menu con lo stesso badge scansionato
+                console.log("[FC Menu] Login kiosk con badge:", rawBadge);
+                submitHiddenForm("https://fcmenu-dub-regionalized.corp.amazon.com/do/login", {
+                    badgeBarcodeId: rawBadge
+                });
 
-                const fieldWarehouse = document.createElement("input");
-                fieldWarehouse.type = "hidden";
-                fieldWarehouse.name = "warehouseId";
-                fieldWarehouse.value = "MXP5";
-                form.appendChild(fieldWarehouse);
-
-                const fieldCode = document.createElement("input");
-                fieldCode.type = "hidden";
-                fieldCode.name = "calmCode";
-                fieldCode.value = "FLUID";
-                form.appendChild(fieldCode);
-
-                document.body.appendChild(form);
-                form.submit();
-                document.body.removeChild(form);
-                console.log("[FC Menu] Set task inviato (FLUID / MXP5)");
+                // Step 2: dopo che l'iframe ha finito di caricare la risposta del login,
+                // invia il set-task (evento "load" funziona anche cross-origin)
+                fcmenuFrame.addEventListener("load", function onLoginLoaded() {
+                    fcmenuFrame.removeEventListener("load", onLoginLoaded);
+                    console.log("[FC Menu] Login completato, invio set task FLUID/MXP5...");
+                    submitHiddenForm("https://fcmenu-dub-regionalized.corp.amazon.com/do/calmCode", {
+                        warehouseId: "MXP5",
+                        calmCode: "FLUID"
+                    });
+                });
             } catch (e) {
-                console.error("[FC Menu] Errore invio set task:", e);
+                console.error("[FC Menu] Errore login/set task:", e);
             }
         }
 
