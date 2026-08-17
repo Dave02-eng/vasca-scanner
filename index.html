@@ -15,6 +15,7 @@
             align-items: center;
             justify-content: center;
             -webkit-tap-highlight-color: transparent;
+            overflow: hidden;
         }
         .header {
             background: linear-gradient(135deg, #1a5276, #2980b9);
@@ -39,6 +40,7 @@
             margin-bottom: 20px;
             font-weight: 600;
         }
+        .greeting.not-logged { font-size: 1.2rem; color: #856404; }
         .scan-input {
             width: 100%;
             padding: 15px 20px;
@@ -60,7 +62,7 @@
         }
         .feedback.success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
         .feedback.error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
-        .feedback.warning { background: #fff3cd; color: #856404; border: 1px solid #ffc107; }
+        .feedback.info { background: #cce5ff; color: #004085; border: 1px solid #b8daff; }
         .counter {
             margin-top: 20px;
             color: #6c757d;
@@ -71,22 +73,67 @@
             bottom: 10px;
             color: #aaa;
             font-size: 0.8rem;
+            text-align: center;
+            width: 100%;
         }
-        .logout-btn {
-            position: fixed;
-            top: 10px;
-            right: 10px;
-            background: #e74c3c;
-            color: white;
-            border: none;
-            padding: 8px 14px;
-            border-radius: 6px;
-            font-size: 0.85rem;
-            cursor: pointer;
-        }
-        .logout-btn:hover { background: #c0392b; }
-        #login-section, #scan-section { display: none; }
         .loading { text-align: center; color: #2980b9; font-size: 1.1rem; margin-top: 20px; }
+
+        /* ─── ALLARME ────────────────────────────────────────────── */
+        #alarm-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            z-index: 999999;
+            align-items: center;
+            justify-content: center;
+            animation: flashBg 0.4s infinite alternate;
+        }
+        @keyframes flashBg {
+            from { background: rgba(220, 53, 69, 0.95); }
+            to   { background: rgba(255, 193, 7, 0.95); }
+        }
+        #alarm-box {
+            background: white;
+            border-radius: 16px;
+            padding: 35px;
+            text-align: center;
+            max-width: 480px;
+            width: 90%;
+            box-shadow: 0 0 60px rgba(0,0,0,0.6);
+            animation: shake 0.3s infinite;
+        }
+        @keyframes shake {
+            0%, 100% { transform: translate(0, 0) rotate(0deg); }
+            25% { transform: translate(-4px, 2px) rotate(-1deg); }
+            75% { transform: translate(4px, -2px) rotate(1deg); }
+        }
+        #alarm-box .siren {
+            font-size: 4.5rem;
+            animation: pulse 0.5s infinite alternate;
+        }
+        @keyframes pulse {
+            from { transform: scale(1); }
+            to   { transform: scale(1.2); }
+        }
+        #alarm-box h2 {
+            color: #dc3545;
+            font-size: 1.6rem;
+            margin: 10px 0;
+        }
+        #alarm-box p {
+            font-size: 1.05rem;
+            color: #333;
+            margin: 12px 0;
+        }
+        #alarm-box .scan-count {
+            font-size: 2.2rem;
+            font-weight: bold;
+            color: #dc3545;
+        }
+        #alarm-box .scan-input {
+            border-color: #dc3545;
+            margin-top: 10px;
+        }
     </style>
 </head>
 <body>
@@ -98,34 +145,49 @@
     <!-- LOADING -->
     <div class="loading" id="loading-msg">Caricamento...</div>
 
-    <!-- LOGIN -->
-    <div class="main-area" id="login-section">
-        <div class="greeting">🪪 Spara il tuo Badge</div>
-        <input type="text" class="scan-input" id="badge-input" placeholder="Badge..." autofocus autocomplete="off">
-        <div class="feedback" id="login-feedback"></div>
-    </div>
-
-    <!-- SCANNER -->
-    <div class="main-area" id="scan-section">
-        <button class="logout-btn" id="logout-btn">Esci</button>
-        <div class="greeting" id="greeting-text">Ciao, scansiona l'etichetta pacco</div>
-        <input type="text" class="scan-input" id="scan-input" placeholder="Etichetta pacco..." autocomplete="off">
-        <div class="feedback" id="scan-feedback"></div>
+    <!-- AREA UNICA: input sempre attivo, riconosce badge o etichetta pacco -->
+    <div class="main-area" id="main-area" style="display:none;">
+        <div class="greeting" id="greeting-text">Scansiona il badge o l'etichetta pacco</div>
+        <input type="text" class="scan-input" id="unified-input" placeholder="Badge o etichetta..." autocomplete="off" autofocus>
+        <div class="feedback" id="feedback-box"></div>
         <div class="counter" id="counter"></div>
     </div>
 
     <div class="footer" id="footer-text">MXP5 — Vasca Injection Tracker</div>
 
+    <!-- ALLARME LOGIN MANCANTE -->
+    <div id="alarm-overlay">
+        <div id="alarm-box">
+            <div class="siren">🚨</div>
+            <h2>ATTENZIONE!</h2>
+            <p>Hai scansionato <span class="scan-count" id="alarm-scan-count">0</span> pacchi<br>
+            <b>senza esserti loggato!</b></p>
+            <p>Spara il tuo badge per continuare:</p>
+            <input type="text" class="scan-input" id="alarm-input" placeholder="Spara il badge qui..." autocomplete="off">
+        </div>
+    </div>
+
     <script>
         // ─── CONFIG ─────────────────────────────────────────────────────
         const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxGCxERhIMskRiXUdNlGVZh1I2_Tr6gzU3gGiSNDR8bb7onlzX8Vifocd55qlehJFuCEQ/exec";
+        const ALARM_THRESHOLD = 10;
+        const AUTO_LOGOUT_MS = 90 * 60 * 1000; // 1h30
 
         // ─── STATE ──────────────────────────────────────────────────────
         let currentLogin = "";
         let currentName = "";
         let scanCount = 0;
+        let anonScanCount = 0;
+        let loginTime = 0;
         let badgeMap = {};
-        let sendQueue = [];  // coda per invii falliti (offline resilience)
+        let sendQueue = [];
+        let alarmActive = false;
+        let audioCtx = null;
+        let sirenInterval = null;
+
+        const mainInput = document.getElementById("unified-input");
+        const alarmInput = document.getElementById("alarm-input");
+        const feedbackBox = document.getElementById("feedback-box");
 
         // ─── LOAD BADGES ────────────────────────────────────────────────
         fetch("badges.json")
@@ -133,18 +195,32 @@
             .then(data => {
                 badgeMap = data;
                 document.getElementById("loading-msg").style.display = "none";
+                document.getElementById("main-area").style.display = "block";
 
-                // Ripristina sessione se esiste
+                // Ripristina sessione se esiste E non è scaduta
                 const saved = sessionStorage.getItem("vasca_user");
                 if (saved) {
                     const user = JSON.parse(saved);
-                    currentLogin = user.login;
-                    currentName = user.name;
-                    scanCount = parseInt(sessionStorage.getItem("vasca_count") || "0");
-                    showScanner();
-                } else {
-                    document.getElementById("login-section").style.display = "block";
-                    document.getElementById("badge-input").focus();
+                    const savedLoginTime = parseInt(sessionStorage.getItem("vasca_login_time") || "0");
+                    if (Date.now() - savedLoginTime < AUTO_LOGOUT_MS) {
+                        currentLogin = user.login;
+                        currentName = user.name;
+                        loginTime = savedLoginTime;
+                    } else {
+                        // Sessione scaduta: pulisci
+                        sessionStorage.removeItem("vasca_user");
+                        sessionStorage.removeItem("vasca_login_time");
+                    }
+                }
+                scanCount = parseInt(sessionStorage.getItem("vasca_count") || "0");
+                anonScanCount = parseInt(sessionStorage.getItem("vasca_anon_count") || "0");
+
+                updateUI();
+                focusActiveInput();
+
+                // Se già in stato di allarme da sessione precedente, ri-mostralo
+                if (!currentLogin && anonScanCount >= ALARM_THRESHOLD) {
+                    showAlarm();
                 }
             })
             .catch(err => {
@@ -152,99 +228,164 @@
                 document.getElementById("loading-msg").textContent = "❌ Errore caricamento dati";
             });
 
-        // ─── BADGE LOGIN ────────────────────────────────────────────────
-        document.getElementById("badge-input").addEventListener("keydown", function(e) {
-            if (e.key === "Enter") {
-                const rawBadge = this.value.trim();
-                // Pad a 7 cifre con zeri iniziali (es. "2240" -> "0002240")
-                const badge = /^\d+$/.test(rawBadge) ? rawBadge.padStart(7, "0") : rawBadge;
-                const feedback = document.getElementById("login-feedback");
+        // ─── GESTIONE INPUT UNIFICATO (badge o pacco, riconosciuto automaticamente) ──
+        function handleScan(rawValue) {
+            const value = rawValue.trim();
+            if (!value) return;
 
-                if (badgeMap[badge]) {
-                    currentLogin = badgeMap[badge].login;
-                    currentName = badgeMap[badge].name;
-                    scanCount = 0;
+            // Normalizza come possibile badge: solo cifre -> pad a 7
+            const asBadge = /^\d+$/.test(value) ? value.padStart(7, "0") : value;
 
-                    // Salva sessione
-                    sessionStorage.setItem("vasca_user", JSON.stringify({login: currentLogin, name: currentName}));
-                    sessionStorage.setItem("vasca_count", "0");
+            if (badgeMap[asBadge]) {
+                // ─── LOGIN (o cambio operatore) ───────────────────────
+                currentLogin = badgeMap[asBadge].login;
+                currentName = badgeMap[asBadge].name;
+                anonScanCount = 0;
+                loginTime = Date.now();
+                sessionStorage.setItem("vasca_user", JSON.stringify({login: currentLogin, name: currentName}));
+                sessionStorage.setItem("vasca_login_time", loginTime.toString());
+                sessionStorage.setItem("vasca_anon_count", "0");
 
-                    showScanner();
-                } else {
-                    feedback.className = "feedback error";
-                    feedback.textContent = "⚠️ Badge non riconosciuto";
-                    this.value = "";
-                    this.focus();
+                let firstName = currentName;
+                if (currentName.includes(",")) {
+                    firstName = currentName.split(",")[1].trim().split(" ")[0];
                 }
-            }
-        });
-
-        // ─── SHOW SCANNER ───────────────────────────────────────────────
-        function showScanner() {
-            let firstName = currentName;
-            if (currentName.includes(",")) {
-                firstName = currentName.split(",")[1].trim().split(" ")[0];
-            }
-
-            document.getElementById("login-section").style.display = "none";
-            document.getElementById("scan-section").style.display = "block";
-            document.getElementById("greeting-text").textContent = "Ciao " + firstName + ", scansiona l'etichetta pacco";
-            document.getElementById("footer-text").textContent = "👤 " + currentLogin + " — MXP5 Vasca Injection Tracker";
-            updateCounter();
-
-            const scanInput = document.getElementById("scan-input");
-            scanInput.value = "";
-            scanInput.focus();
-        }
-
-        // ─── LOGOUT ─────────────────────────────────────────────────────
-        document.getElementById("logout-btn").addEventListener("click", function() {
-            sessionStorage.removeItem("vasca_user");
-            sessionStorage.removeItem("vasca_count");
-            currentLogin = "";
-            currentName = "";
-            scanCount = 0;
-            document.getElementById("scan-section").style.display = "none";
-            document.getElementById("login-section").style.display = "block";
-            document.getElementById("badge-input").value = "";
-            document.getElementById("badge-input").focus();
-            document.getElementById("login-feedback").textContent = "";
-            document.getElementById("footer-text").textContent = "MXP5 — Vasca Injection Tracker";
-        });
-
-        // ─── SCANNER ────────────────────────────────────────────────────
-        document.getElementById("scan-input").addEventListener("keydown", function(e) {
-            if (e.key === "Enter") {
-                const barcode = this.value.trim();
-                if (!barcode) return;
-
-                // Feedback IMMEDIATO — nessun blocco
+                showFeedback("✅ Ciao " + firstName + "!", "success");
+                hideAlarm();
+                updateUI();
+            } else {
+                // ─── SCAN ETICHETTA PACCO ──────────────────────────────
                 scanCount++;
                 sessionStorage.setItem("vasca_count", scanCount.toString());
-                const feedback = document.getElementById("scan-feedback");
-                feedback.className = "feedback success";
-                feedback.textContent = "✅ " + barcode;
+                showFeedback("✅ " + value, "success");
+                sendToSheet(value);
+
+                if (!currentLogin) {
+                    anonScanCount++;
+                    sessionStorage.setItem("vasca_anon_count", anonScanCount.toString());
+                    if (anonScanCount >= ALARM_THRESHOLD) {
+                        showAlarm();
+                    }
+                }
                 updateCounter();
-
-                // Pulisci campo subito per prossima scansione
-                this.value = "";
-                this.focus();
-
-                // Invia in background (fire-and-forget)
-                sendToSheet(barcode);
             }
-        });
 
-        // ─── COUNTER ────────────────────────────────────────────────────
+            focusActiveInput();
+        }
+
+        function showFeedback(text, type) {
+            feedbackBox.className = "feedback " + type;
+            feedbackBox.textContent = text;
+        }
+
+        // ─── AGGIORNA UI (greeting, footer) ──────────────────────────────
+        function updateUI() {
+            const greeting = document.getElementById("greeting-text");
+            const footer = document.getElementById("footer-text");
+
+            if (currentLogin) {
+                let firstName = currentName;
+                if (currentName.includes(",")) {
+                    firstName = currentName.split(",")[1].trim().split(" ")[0];
+                }
+                greeting.className = "greeting";
+                greeting.textContent = "Ciao " + firstName + ", scansiona l'etichetta pacco";
+                footer.textContent = "👤 " + currentLogin + " — MXP5 Vasca Injection Tracker";
+            } else {
+                greeting.className = "greeting not-logged";
+                greeting.textContent = "Scansiona il badge o l'etichetta pacco";
+                footer.textContent = "MXP5 — Vasca Injection Tracker · Non loggato (" + anonScanCount + "/" + ALARM_THRESHOLD + ")";
+            }
+            updateCounter();
+        }
+
         function updateCounter() {
             document.getElementById("counter").textContent = scanCount + " scansion" + (scanCount === 1 ? "e" : "i") + " in questa sessione";
         }
+
+        // ─── AUTO-LOGOUT DOPO 1H30 ────────────────────────────────────
+        function checkAutoLogout() {
+            if (!currentLogin || !loginTime) return;
+            if (Date.now() - loginTime >= AUTO_LOGOUT_MS) {
+                currentLogin = "";
+                currentName = "";
+                loginTime = 0;
+                anonScanCount = 0; // nuovo periodo di grazia dopo il logout automatico
+                sessionStorage.removeItem("vasca_user");
+                sessionStorage.removeItem("vasca_login_time");
+                sessionStorage.setItem("vasca_anon_count", "0");
+                showFeedback("⏰ Sessione scaduta (1h30). Rifai il login.", "info");
+                updateUI();
+            }
+        }
+        setInterval(checkAutoLogout, 30000); // controlla ogni 30 secondi
+
+        // ─── ALLARME ──────────────────────────────────────────────────
+        function showAlarm() {
+            alarmActive = true;
+            document.getElementById("alarm-scan-count").textContent = anonScanCount;
+            document.getElementById("alarm-overlay").style.display = "flex";
+            alarmInput.value = "";
+            alarmInput.focus();
+            startSiren();
+        }
+
+        function hideAlarm() {
+            if (!alarmActive) return;
+            alarmActive = false;
+            document.getElementById("alarm-overlay").style.display = "none";
+            stopSiren();
+        }
+
+        function startSiren() {
+            if (audioCtx) return;
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            if (audioCtx.state === "suspended") audioCtx.resume();
+
+            function beep() {
+                if (audioCtx.state === "suspended") audioCtx.resume();
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.type = "sine";
+                const now = audioCtx.currentTime;
+                osc.frequency.setValueAtTime(600, now);
+                osc.frequency.linearRampToValueAtTime(1000, now + 0.3);
+                osc.frequency.linearRampToValueAtTime(600, now + 0.6);
+                gain.gain.setValueAtTime(0.4, now);
+                osc.start(now);
+                osc.stop(now + 0.6);
+            }
+            beep();
+            sirenInterval = setInterval(beep, 700);
+        }
+
+        function stopSiren() {
+            if (sirenInterval) { clearInterval(sirenInterval); sirenInterval = null; }
+            if (audioCtx) { audioCtx.close(); audioCtx = null; }
+        }
+
+        // ─── EVENT LISTENERS (input principale + input dentro l'allarme) ──
+        mainInput.addEventListener("keydown", function(e) {
+            if (e.key === "Enter") {
+                handleScan(this.value);
+                this.value = "";
+            }
+        });
+
+        alarmInput.addEventListener("keydown", function(e) {
+            if (e.key === "Enter") {
+                handleScan(this.value);
+                this.value = "";
+            }
+        });
 
         // ─── INVIO A GOOGLE SHEET (con retry) ───────────────────────────
         function sendToSheet(scannableId) {
             const payload = {
                 scannable_id: scannableId,
-                login: currentLogin
+                login: currentLogin || "ANONIMO"
             };
 
             fetch(APPS_SCRIPT_URL, {
@@ -258,7 +399,6 @@
             });
         }
 
-        // ─── RETRY QUEUE (ogni 30s tenta di reinviare i falliti) ─────────
         setInterval(() => {
             if (sendQueue.length === 0) return;
             const batch = [...sendQueue];
@@ -275,14 +415,18 @@
             });
         }, 30000);
 
-        // ─── KEEP FOCUS sull'input attivo ───────────────────────────────
-        document.addEventListener("click", function() {
-            if (document.getElementById("scan-section").style.display === "block") {
-                document.getElementById("scan-input").focus();
-            } else if (document.getElementById("login-section").style.display === "block") {
-                document.getElementById("badge-input").focus();
+        // ─── FOCUS SEMPRE ATTIVO (niente mouse/tastiera: serve auto-focus) ──
+        function focusActiveInput() {
+            if (alarmActive) {
+                alarmInput.focus();
+            } else {
+                mainInput.focus();
             }
-        });
+        }
+
+        // Rimette il focus se per qualche motivo si perde (click accidentale, popup, ecc.)
+        setInterval(focusActiveInput, 1000);
+        document.addEventListener("click", focusActiveInput);
     </script>
 </body>
 </html>
