@@ -382,7 +382,10 @@
                 audioCtx.resume().then(() => console.log("[Audio] Resumed, stato:", audioCtx.state));
             }
 
+            let beepCount = 0;
             function beep() {
+                beepCount++;
+                console.log("[Audio] beep #" + beepCount + " — stato:", audioCtx.state, "currentTime:", audioCtx.currentTime.toFixed(2));
                 if (audioCtx.state === "suspended") audioCtx.resume();
                 const osc = audioCtx.createOscillator();
                 const gain = audioCtx.createGain();
@@ -402,6 +405,7 @@
         }
 
         function stopSiren() {
+            console.trace("[Audio] stopSiren chiamato");
             if (sirenInterval) { clearInterval(sirenInterval); sirenInterval = null; }
             // Non chiudiamo audioCtx: resta pronto (già sbloccato) per il prossimo allarme
         }
