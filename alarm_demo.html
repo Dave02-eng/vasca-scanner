@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<title>Demo Allarme Login</title>
+<style>
+    body {
+        font-family: 'Segoe UI', sans-serif;
+        background: #f0f8ff;
+        height: 100vh;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        margin: 0;
+    }
+    .info {
+        text-align: center;
+        margin-bottom: 30px;
+    }
+    button {
+        padding: 15px 30px;
+        font-size: 1.2rem;
+        background: #2980b9;
+        color: white;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        margin: 5px;
+    }
+    button:hover { background: #1a5276; }
+    #counter {
+        font-size: 2rem;
+        font-weight: bold;
+        color: #2c3e50;
+        margin: 20px 0;
+    }
+
+    /* ─── ALLARME ────────────────────────────────────────────── */
+    #alarm-overlay {
+        display: none;
+        position: fixed;
+        top: 0; left: 0; right: 0; bottom: 0;
+        z-index: 999999;
+        align-items: center;
+        justify-content: center;
+        animation: flashBg 0.4s infinite alternate;
+    }
+    @keyframes flashBg {
+        from { background: rgba(220, 53, 69, 0.95); }
+        to   { background: rgba(255, 193, 7, 0.95); }
+    }
+    #alarm-box {
+        background: white;
+        border-radius: 16px;
+        padding: 40px;
+        text-align: center;
+        max-width: 500px;
+        box-shadow: 0 0 60px rgba(0,0,0,0.6);
+        animation: shake 0.3s infinite;
+    }
+    @keyframes shake {
+        0%, 100% { transform: translate(0, 0) rotate(0deg); }
+        25% { transform: translate(-4px, 2px) rotate(-1deg); }
+        75% { transform: translate(4px, -2px) rotate(1deg); }
+    }
+    #alarm-box .siren {
+        font-size: 5rem;
+        animation: pulse 0.5s infinite alternate;
+    }
+    @keyframes pulse {
+        from { transform: scale(1); }
+        to   { transform: scale(1.2); }
+    }
+    #alarm-box h2 {
+        color: #dc3545;
+        font-size: 1.8rem;
+        margin: 10px 0;
+    }
+    #alarm-box p {
+        font-size: 1.1rem;
+        color: #333;
+        margin: 15px 0;
+    }
+    #alarm-box input {
+        width: 100%;
+        padding: 14px;
+        font-size: 1.3rem;
+        text-align: center;
+        border: 3px solid #dc3545;
+        border-radius: 8px;
+        box-sizing: border-box;
+        margin-top: 10px;
+    }
+    #alarm-box .scan-count {
+        font-size: 2.5rem;
+        font-weight: bold;
+        color: #dc3545;
+    }
+</style>
+</head>
+<body>
+
+<div class="info">
+    <h1>🧪 Demo Allarme "Loggati"</h1>
+    <p>Clicca "Simula scan senza login" 10 volte per vedere l'allarme.</p>
+</div>
+
+<div id="counter">Scan senza login: 0 / 10</div>
+
+<div>
+    <button onclick="simulateScan()">📦 Simula scan senza login</button>
+    <button onclick="reset()" style="background:#6c757d;">🔄 Reset</button>
+</div>
+
+<!-- ALLARME -->
+<div id="alarm-overlay">
+    <div id="alarm-box">
+        <div class="siren">🚨</div>
+        <h2>ATTENZIONE!</h2>
+        <p>Hai scansionato <span class="scan-count" id="scan-count-display">0</span> pacchi<br>
+        <b>senza esserti loggato!</b></p>
+        <p>Spara il tuo badge per continuare:</p>
+        <input type="text" id="alarm-badge-input" placeholder="Spara il badge qui..." autofocus>
+    </div>
+</div>
+
+<script>
+    let scanCount = 0;
+    const THRESHOLD = 10;
+    let audioCtx = null;
+    let alarmInterval = null;
+
+    function simulateScan() {
+        scanCount++;
+        document.getElementById('counter').textContent = `Scan senza login: ${scanCount} / ${THRESHOLD}`;
+        if (scanCount >= THRESHOLD) {
+            showAlarm();
+        }
+    }
+
+    function reset() {
+        scanCount = 0;
+        document.getElementById('counter').textContent = `Scan senza login: 0 / ${THRESHOLD}`;
+        hideAlarm();
+    }
+
+    function showAlarm() {
+        document.getElementById('scan-count-display').textContent = scanCount;
+        document.getElementById('alarm-overlay').style.display = 'flex';
+        document.getElementById('alarm-badge-input').focus();
+        startSiren();
+    }
+
+    function hideAlarm() {
+        document.getElementById('alarm-overlay').style.display = 'none';
+        stopSiren();
+    }
+
+    // ─── Suono sirena generato via Web Audio API ────────────────
+    function startSiren() {
+        if (audioCtx) return; // già in corso
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+        function beep() {
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.type = 'sine';
+
+            // Effetto sirena: sweep di frequenza su e giù
+            const now = audioCtx.currentTime;
+            osc.frequency.setValueAtTime(600, now);
+            osc.frequency.linearRampToValueAtTime(1000, now + 0.3);
+            osc.frequency.linearRampToValueAtTime(600, now + 0.6);
+
+            gain.gain.setValueAtTime(0.15, now);
+            osc.start(now);
+            osc.stop(now + 0.6);
+        }
+
+        beep();
+        alarmInterval = setInterval(beep, 700);
+    }
+
+    function stopSiren() {
+        if (alarmInterval) {
+            clearInterval(alarmInterval);
+            alarmInterval = null;
+        }
+        if (audioCtx) {
+            audioCtx.close();
+            audioCtx = null;
+        }
+    }
+
+    // Simula login: badge dismisses l'allarme
+    document.getElementById('alarm-badge-input').addEventListener('keydown', function(e) {
+        if (e.key === 'Enter' && this.value.trim()) {
+            alert('Login simulato con badge: ' + this.value.trim());
+            this.value = '';
+            reset();
+        }
+    });
+</script>
+
+</body>
+</html>
