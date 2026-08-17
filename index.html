@@ -248,7 +248,8 @@
 
         // ─── GESTIONE INPUT UNIFICATO (badge o pacco, riconosciuto automaticamente) ──
         function handleScan(rawValue) {
-            const value = rawValue.trim();
+            // Lo scanner legge gli underscore come "?" — normalizza prima di tutto
+            const value = rawValue.trim().replace(/\?/g, "_");
             if (!value) return;
 
             // ─── COMANDO LOGOUT MANUALE ─────────────────────────────
