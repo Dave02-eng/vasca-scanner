@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<title>Sistema Tracciamento Pacchi - Vasche Injection MXP5</title>
+<style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+        font-family: 'Segoe UI', Arial, sans-serif;
+        background: linear-gradient(135deg, #eef2f7 0%, #dce6f0 100%);
+        padding: 40px 20px;
+        color: #1a1a2e;
+    }
+    .header {
+        text-align: center;
+        margin-bottom: 40px;
+    }
+    .header h1 {
+        font-size: 2.2rem;
+        color: #1a5276;
+        margin-bottom: 8px;
+    }
+    .header p {
+        color: #566573;
+        font-size: 1.1rem;
+    }
+    .diagram {
+        max-width: 1200px;
+        margin: 0 auto;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0;
+    }
+    .stage {
+        background: white;
+        border-radius: 14px;
+        padding: 20px 30px;
+        box-shadow: 0 4px 14px rgba(0,0,0,0.12);
+        text-align: center;
+        min-width: 280px;
+        position: relative;
+        border-left: 6px solid #2980b9;
+    }
+    .stage .icon { font-size: 2.2rem; margin-bottom: 6px; }
+    .stage h3 { font-size: 1.05rem; color: #1a5276; margin-bottom: 4px; }
+    .stage p { font-size: 0.85rem; color: #566573; line-height: 1.4; }
+
+    .arrow-down {
+        width: 3px;
+        height: 40px;
+        background: #2980b9;
+        position: relative;
+    }
+    .arrow-down::after {
+        content: '';
+        position: absolute;
+        bottom: -1px;
+        left: -6px;
+        border-left: 7px solid transparent;
+        border-right: 7px solid transparent;
+        border-top: 10px solid #2980b9;
+    }
+
+    .branch-container {
+        display: flex;
+        gap: 60px;
+        align-items: flex-start;
+        margin-top: 0;
+    }
+    .branch {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+    }
+    .branch-connector {
+        width: 3px;
+        height: 40px;
+        background: #28a745;
+    }
+    .branch-connector::after {
+        border-top-color: #28a745;
+    }
+
+    .stage.dock { border-left-color: #28a745; }
+    .stage.rodeo { border-left-color: #e67e22; }
+    .stage.sheet { border-left-color: #8e44ad; }
+    .stage.thin { border-left-color: #2980b9; }
+    .stage.alarm { border-left-color: #dc3545; }
+
+    .result-box {
+        margin-top: 15px;
+        background: #d4edda;
+        border: 2px solid #28a745;
+        border-radius: 8px;
+        padding: 10px 16px;
+        font-size: 0.85rem;
+        color: #155724;
+        font-weight: 600;
+    }
+    .result-box.rodeo-result {
+        background: #fdebd0;
+        border-color: #e67e22;
+        color: #7d4a0f;
+    }
+
+    .split-line {
+        display: flex;
+        align-items: center;
+        gap: 20px;
+        width: 100%;
+        max-width: 700px;
+        margin: 10px 0;
+    }
+    .split-line .line {
+        flex: 1;
+        height: 3px;
+        background: #8e44ad;
+    }
+
+    .side-note {
+        max-width: 1200px;
+        margin: 50px auto 0;
+        background: white;
+        border-radius: 14px;
+        padding: 24px 30px;
+        box-shadow: 0 4px 14px rgba(0,0,0,0.12);
+        border-left: 6px solid #dc3545;
+    }
+    .side-note h3 { color: #dc3545; margin-bottom: 10px; }
+    .side-note p { color: #566573; font-size: 0.95rem; line-height: 1.6; }
+
+    .legend {
+        max-width: 1200px;
+        margin: 30px auto 0;
+        display: flex;
+        justify-content: center;
+        gap: 30px;
+        flex-wrap: wrap;
+        font-size: 0.85rem;
+        color: #566573;
+    }
+    .legend span {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+    }
+    .legend .dot {
+        width: 12px; height: 12px;
+        border-radius: 50%;
+        display: inline-block;
+    }
+
+    .flow-labels {
+        display: flex;
+        gap: 100px;
+        margin-top: -10px;
+        margin-bottom: -10px;
+    }
+    .flow-labels span {
+        font-size: 0.8rem;
+        color: #566573;
+        font-style: italic;
+    }
+</style>
+</head>
+<body>
+
+<div class="header">
+    <h1>📦 Sistema di Tracciamento Pacchi — Vasche Injection MXP5</h1>
+    <p>Verifica visiva in tempo reale dell'injection outbound, con storico consultabile</p>
+</div>
+
+<div class="diagram">
+
+    <!-- STAGE 1: Operatore -->
+    <div class="stage thin">
+        <div class="icon">👷</div>
+        <h3>Operatore alle Vasche</h3>
+        <p>Spara con lo scanner qualsiasi codice presente sulla label del pacco<br>(Sp00, tracking ID, container)</p>
+    </div>
+
+    <div class="arrow-down"></div>
+
+    <!-- STAGE 2: Thin Client -->
+    <div class="stage thin">
+        <div class="icon">🖥️</div>
+        <h3>Thin Client (Kiosk Browser)</h3>
+        <p>Pagina web leggera, sempre aperta a schermo intero.<br>Nessun rallentamento, nessuna installazione.</p>
+    </div>
+
+    <div class="arrow-down"></div>
+
+    <!-- STAGE 3: Alarm system -->
+    <div class="stage alarm">
+        <div class="icon">🚨</div>
+        <h3>Sistema Anti-Anonimato</h3>
+        <p>Dopo 10 scan senza badge → allarme sonoro + popup bloccante che obbliga il login</p>
+    </div>
+
+    <div class="arrow-down"></div>
+
+    <!-- STAGE 4: Google Sheet -->
+    <div class="stage sheet">
+        <div class="icon">📊</div>
+        <h3>Google Sheet</h3>
+        <p>Registro centrale: timestamp + codice scansionato + login operatore.<br>
+        <b>Storico consultabile</b> in caso di pacchi mancanti/rubati.</p>
+    </div>
+
+    <div class="arrow-down"></div>
+
+    <div class="flow-labels">
+        <span>codice tracking / container</span>
+        <span>&nbsp;&nbsp;&nbsp;&nbsp;codice Sp00</span>
+    </div>
+
+    <!-- BRANCH -->
+    <div class="branch-container">
+        <div class="branch">
+            <div class="arrow-down" style="background:#28a745;"></div>
+            <div class="stage dock">
+                <div class="icon">🚛</div>
+                <h3>Outbound Dock Management</h3>
+                <p>Script confronta i codici della pagina truck/package details con lo Sheet</p>
+            </div>
+            <div class="result-box">✅ Pacco evidenziato in verde</div>
+        </div>
+
+        <div class="branch">
+            <div class="arrow-down" style="background:#e67e22;"></div>
+            <div class="stage rodeo">
+                <div class="icon">🐴</div>
+                <h3>Rodeo</h3>
+                <p>Script confronta le Scannable ID (Sp00) visibili nelle liste Rodeo con lo Sheet</p>
+            </div>
+            <div class="result-box rodeo-result">✅ Riga evidenziata in verde</div>
+        </div>
+    </div>
+
+</div>
+
+<div class="side-note">
+    <h3>🔍 Perché due superfici di monitoraggio?</h3>
+    <p>
+        La label di un pacco ha più codici stampati (Sp00, tracking, container). L'operatore spara quello che il
+        laser trova più comodo — non è sempre lo stesso tipo. Il <b>Dock Management</b> mostra il codice tracking
+        raw così com'è, mentre <b>Rodeo</b> mostra solo la Sp00 (Scannable ID). Coprendo entrambi i sistemi,
+        qualsiasi codice scansionato produce un'evidenziazione visibile da almeno uno dei due strumenti che il
+        team usa già ogni giorno — senza bisogno di risolvere i codici tramite API esterne (verificato: bloccate
+        da permessi).
+    </p>
+</div>
+
+<div class="legend">
+    <span><span class="dot" style="background:#2980b9;"></span> Input / Kiosk</span>
+    <span><span class="dot" style="background:#dc3545;"></span> Sicurezza / Tracciabilità operatore</span>
+    <span><span class="dot" style="background:#8e44ad;"></span> Storico dati</span>
+    <span><span class="dot" style="background:#28a745;"></span> Monitoraggio Dock</span>
+    <span><span class="dot" style="background:#e67e22;"></span> Monitoraggio Rodeo</span>
+</div>
+
+</body>
+</html>
