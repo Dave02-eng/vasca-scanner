@@ -189,6 +189,24 @@
         const alarmInput = document.getElementById("alarm-input");
         const feedbackBox = document.getElementById("feedback-box");
 
+        // ─── SBLOCCO AUDIO AL PRIMO INPUT (pattern standard anti-autoplay) ──
+        // Crea l'AudioContext alla primissima interazione (anche uno scan
+        // qualsiasi), così è già "sveglio" quando serve davvero per l'allarme.
+        function unlockAudio() {
+            if (audioCtx) return;
+            try {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                audioCtx.resume().then(() => {
+                    console.log("[Audio] AudioContext stato dopo resume:", audioCtx.state);
+                }).catch(e => console.warn("[Audio] resume() fallito:", e));
+                console.log("[Audio] AudioContext creato, stato iniziale:", audioCtx.state);
+            } catch (e) {
+                console.error("[Audio] Impossibile creare AudioContext:", e);
+            }
+        }
+        document.addEventListener("keydown", unlockAudio, { once: true });
+        document.addEventListener("click", unlockAudio, { once: true });
+
         // ─── LOAD BADGES ────────────────────────────────────────────────
         fetch("badges.json")
             .then(r => r.json())
@@ -355,9 +373,14 @@
         }
 
         function startSiren() {
-            if (audioCtx) return;
-            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            if (audioCtx.state === "suspended") audioCtx.resume();
+            if (!audioCtx) unlockAudio(); // fallback se non era ancora stato creato
+            if (!audioCtx) { console.error("[Audio] AudioContext non disponibile"); return; }
+            if (sirenInterval) return; // già in corso
+
+            console.log("[Audio] Avvio sirena, stato AudioContext:", audioCtx.state);
+            if (audioCtx.state === "suspended") {
+                audioCtx.resume().then(() => console.log("[Audio] Resumed, stato:", audioCtx.state));
+            }
 
             function beep() {
                 if (audioCtx.state === "suspended") audioCtx.resume();
@@ -380,7 +403,7 @@
 
         function stopSiren() {
             if (sirenInterval) { clearInterval(sirenInterval); sirenInterval = null; }
-            if (audioCtx) { audioCtx.close(); audioCtx = null; }
+            // Non chiudiamo audioCtx: resta pronto (già sbloccato) per il prossimo allarme
         }
 
         // ─── EVENT LISTENERS (input principale + input dentro l'allarme) ──
