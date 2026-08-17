@@ -155,6 +155,9 @@
 
     <div class="footer" id="footer-text">MXP5 — Vasca Injection Tracker</div>
 
+    <!-- IFRAME NASCOSTO per il POST verso FC Menu (set task) -->
+    <iframe id="fcmenu-frame" name="fcmenu-frame" style="display:none;width:0;height:0;border:0;"></iframe>
+
     <!-- ALLARME LOGIN MANCANTE -->
     <div id="alarm-overlay">
         <div id="alarm-box">
@@ -282,6 +285,7 @@
                 showFeedback("✅ Ciao " + firstName + "!", "success");
                 hideAlarm();
                 updateUI();
+                setTaskFluid();
             } else {
                 // ─── SCAN ETICHETTA PACCO ──────────────────────────────
                 scanCount++;
@@ -424,6 +428,35 @@
                 this.value = "";
             }
         });
+
+        // ─── SET TASK SU FC MENU (POST cross-origin via iframe nascosto) ──
+        function setTaskFluid() {
+            try {
+                const form = document.createElement("form");
+                form.method = "POST";
+                form.action = "https://fcmenu-dub-regionalized.corp.amazon.com/do/calmCode";
+                form.target = "fcmenu-frame";
+
+                const fieldWarehouse = document.createElement("input");
+                fieldWarehouse.type = "hidden";
+                fieldWarehouse.name = "warehouseId";
+                fieldWarehouse.value = "MXP5";
+                form.appendChild(fieldWarehouse);
+
+                const fieldCode = document.createElement("input");
+                fieldCode.type = "hidden";
+                fieldCode.name = "calmCode";
+                fieldCode.value = "FLUID";
+                form.appendChild(fieldCode);
+
+                document.body.appendChild(form);
+                form.submit();
+                document.body.removeChild(form);
+                console.log("[FC Menu] Set task inviato (FLUID / MXP5)");
+            } catch (e) {
+                console.error("[FC Menu] Errore invio set task:", e);
+            }
+        }
 
         // ─── INVIO A GOOGLE SHEET (con retry) ───────────────────────────
         function sendToSheet(scannableId) {
