@@ -197,7 +197,8 @@
                         const ids = extractIds(pkg);
                         resolveCache[code] = ids;
                         ids.forEach(id => highlightIds.add(id.toLowerCase()));
-                        if (ids.length > 0) LOG(`✅ ${code} → ${ids.length} ID risolti`);
+                        if (ids.length > 0) LOG(`✅ ${code} → ID risolti:`, ids);
+                        else LOG(`⚠️ ${code} → nessun ID estratto. Package grezzo:`, pkg);
                         await new Promise(r => setTimeout(r, RESOLVE_DELAY_MS));
                     }
                     saveCache();
