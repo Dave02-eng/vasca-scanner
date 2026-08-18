@@ -47,10 +47,11 @@
     // ==================== CONFIG ====================
     const SHEET_ID = '1xblEjqHdpXCGJgatKeJgDx3810dP83Z92-C3uonL0gY';
     const GID = '1642192258';
-    const SHEET_CSV_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${GID}`;
+    // gviz/tq è molto più tollerante al rate limit rispetto a /export?format=csv
+    const SHEET_CSV_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&gid=${GID}`;
     const COLUMN_INDEX = 1; // colonna B = scannable_id
     const EAGLEEYE_API = 'https://eu.eagleeye-api.ats.amazon.dev';
-    const SHEET_REFRESH_MS = 90000;    // rilegge lo Sheet ogni 90s (evita rate limit Google)
+    const SHEET_REFRESH_MS = 300000;   // rilegge lo Sheet ogni 5 min (evita rate limit Google)
     const HIGHLIGHT_REFRESH_MS = 5000; // ri-scansiona il DOM ogni 5s
     const RESOLVE_DELAY_MS = 250;      // pausa tra le chiamate Eagle-Eye (rate limit)
     let sheetBackoffMs = 0;            // backoff dinamico in caso di 429
