@@ -50,9 +50,10 @@
     const SHEET_CSV_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${GID}`;
     const COLUMN_INDEX = 1; // colonna B = scannable_id
     const EAGLEEYE_API = 'https://eu.eagleeye-api.ats.amazon.dev';
-    const SHEET_REFRESH_MS = 30000;    // rilegge lo Sheet ogni 30s
+    const SHEET_REFRESH_MS = 90000;    // rilegge lo Sheet ogni 90s (evita rate limit Google)
     const HIGHLIGHT_REFRESH_MS = 5000; // ri-scansiona il DOM ogni 5s
     const RESOLVE_DELAY_MS = 250;      // pausa tra le chiamate Eagle-Eye (rate limit)
+    let sheetBackoffMs = 0;            // backoff dinamico in caso di 429
 
     const LOG = (...a) => console.log('[VascaHL]', ...a);
     const WARN = (...a) => console.warn('[VascaHL]', ...a);
@@ -159,7 +160,15 @@
             method: 'GET',
             url: SHEET_CSV_URL,
             onload: async function (response) {
+                if (response.status === 429) {
+                    // Rate limit Google: aumenta il backoff e riprova più tardi
+                    sheetBackoffMs = Math.min((sheetBackoffMs || 30000) * 2, 300000);
+                    WARN(`Sheet 429 (rate limit). Riprovo tra ${sheetBackoffMs / 1000}s. I dati già in cache restano validi.`);
+                    setTimeout(loadSheetAndResolve, sheetBackoffMs);
+                    return;
+                }
                 if (response.status !== 200) { WARN('Errore Sheet:', response.status); return; }
+                sheetBackoffMs = 0; // reset backoff dopo un successo
 
                 const lines = response.responseText.split('\n');
                 const toResolve = [];
