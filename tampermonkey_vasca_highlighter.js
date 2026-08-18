@@ -10,8 +10,9 @@
 // @match        https://eagleeye.amazon.dev/?lang=en_US&region=EU
 // @connect      eagleeye-api.ats.amazon.dev
 // @connect      eagleeye.amazon.dev
-// @connect      docs.google.com
-// @connect      sheets.googleusercontent.com
+// @connect      script.google.com
+// @connect      script.googleusercontent.com
+// @connect      googleusercontent.com
 // @connect      *.googleusercontent.com
 // @grant        GM_addStyle
 // @grant        GM_getValue
@@ -45,16 +46,13 @@
     }
 
     // ==================== CONFIG ====================
-    const SHEET_ID = '1xblEjqHdpXCGJgatKeJgDx3810dP83Z92-C3uonL0gY';
-    const GID = '1642192258';
-    // gviz/tq è molto più tollerante al rate limit rispetto a /export?format=csv
-    const SHEET_CSV_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&gid=${GID}`;
-    const COLUMN_INDEX = 1; // colonna B = scannable_id
+    // Legge i codici dal Google Apps Script (doGet) — nessun rate limit di Google Sheets,
+    // quindi possiamo interrogarlo di frequente per un'evidenziazione quasi-istantanea.
+    const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxGCxERhIMskRiXUdNlGVZh1I2_Tr6gzU3gGiSNDR8bb7onlzX8Vifocd55qlehJFuCEQ/exec';
     const EAGLEEYE_API = 'https://eu.eagleeye-api.ats.amazon.dev';
-    const SHEET_REFRESH_MS = 20000;    // rilegge lo Sheet ogni 20s (gviz tollera bene questo ritmo)
-    const HIGHLIGHT_REFRESH_MS = 5000; // ri-scansiona il DOM ogni 5s
-    const RESOLVE_DELAY_MS = 250;      // pausa tra le chiamate Eagle-Eye (rate limit)
-    let sheetBackoffMs = 0;            // backoff dinamico in caso di 429
+    const SHEET_REFRESH_MS = 5000;     // rilegge i codici ogni 5s (Apps Script non ha rate limit)
+    const HIGHLIGHT_REFRESH_MS = 3000; // ri-scansiona il DOM ogni 3s
+    const RESOLVE_DELAY_MS = 250;      // pausa tra le chiamate Eagle-Eye
 
     const LOG = (...a) => console.log('[VascaHL]', ...a);
     const WARN = (...a) => console.warn('[VascaHL]', ...a);
@@ -155,44 +153,40 @@
         return ids;
     }
 
-    // ==================== LETTURA SHEET + RISOLUZIONE ====================
+    // ==================== LETTURA CODICI (Apps Script) + RISOLUZIONE ====================
     function loadSheetAndResolve() {
         GM_xmlhttpRequest({
             method: 'GET',
-            url: SHEET_CSV_URL,
+            url: APPS_SCRIPT_URL,
             onload: async function (response) {
-                if (response.status === 429) {
-                    // Rate limit Google: aumenta il backoff e riprova più tardi
-                    sheetBackoffMs = Math.min((sheetBackoffMs || 30000) * 2, 300000);
-                    WARN(`Sheet 429 (rate limit). Riprovo tra ${sheetBackoffMs / 1000}s. I dati già in cache restano validi.`);
-                    setTimeout(loadSheetAndResolve, sheetBackoffMs);
+                if (response.status !== 200) { WARN('Errore Apps Script:', response.status); return; }
+
+                let codesFromSheet = [];
+                try {
+                    const data = JSON.parse(response.responseText);
+                    codesFromSheet = data.codes || [];
+                } catch (e) {
+                    ERR('Risposta Apps Script non JSON (aggiungere doGet?):', response.responseText.slice(0, 120));
                     return;
                 }
-                if (response.status !== 200) { WARN('Errore Sheet:', response.status); return; }
-                sheetBackoffMs = 0; // reset backoff dopo un successo
 
-                const lines = response.responseText.split('\n');
                 const toResolve = [];
+                for (let raw of codesFromSheet) {
+                    if (!raw) continue;
+                    // Normalizza "?" -> "_" (scanner)
+                    const code = String(raw).trim().replace(/\?/g, '_');
+                    if (!code) continue;
 
-                for (let i = 1; i < lines.length; i++) {
-                    const cols = lines[i].split(',');
-                    if (cols.length > COLUMN_INDEX) {
-                        let code = cols[COLUMN_INDEX].trim().replace(/"/g, '');
-                        // Normalizza "?" -> "_" (scanner) e via eventuali prefissi
-                        code = code.replace(/\?/g, '_');
-                        if (!code) continue;
+                    // Match testuale diretto (utile per le SPOO)
+                    highlightIds.add(code.toLowerCase());
 
-                        // Le SPOO le evidenziamo direttamente (match testuale)
-                        highlightIds.add(code.toLowerCase());
-
-                        // Se già in cache o già visto, salta la risoluzione
-                        if (resolveCache[code] || seenCodes.has(code)) continue;
-                        seenCodes.add(code);
-                        toResolve.push(code);
-                    }
+                    // Se già in cache o già visto, salta la risoluzione
+                    if (resolveCache[code] || seenCodes.has(code)) continue;
+                    seenCodes.add(code);
+                    toResolve.push(code);
                 }
 
-                LOG(`Sheet: ${seenCodes.size} codici totali, ${toResolve.length} nuovi da risolvere`);
+                LOG(`Codici: ${seenCodes.size} totali, ${toResolve.length} nuovi da risolvere`);
                 highlightPage();
 
                 // Risolvi i nuovi codici via Eagle-Eye (sequenziale, con pausa)
@@ -211,7 +205,7 @@
                     highlightPage();
                 }
             },
-            onerror: () => ERR('Errore caricamento Sheet')
+            onerror: () => ERR('Errore caricamento Apps Script')
         });
     }
 
