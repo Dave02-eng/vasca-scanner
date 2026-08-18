@@ -123,6 +123,7 @@
                         let pkg = null;
                         if (Array.isArray(data) && data.length > 0 && data[0].package) pkg = data[0].package;
                         else if (data && data.package) pkg = data.package;
+                        if (!pkg) LOG(`Eagle-Eye risposta grezza per ${searchValue}:`, data);
                         resolve(pkg);
                     } catch (e) {
                         ERR('Risposta Eagle-Eye non JSON:', e);
